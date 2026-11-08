@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>中国語単語クイズ</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>中国語単語クイズ</h1>
+    <button id="homeBtn" class="link-btn hidden">← メニューへ</button>
+  </header>
+
+  <main>
+    <!-- メニュー画面 -->
+    <section id="menu">
+      <h2>1. 品詞を選ぶ</h2>
+      <div id="categoryList" class="option-grid"></div>
+
+      <h2>2. 出題モードを選ぶ</h2>
+      <div class="option-grid three" id="modeList">
+        <label class="option"><input type="radio" name="mode" value="word" checked><span>単語 → 意味</span></label>
+        <label class="option"><input type="radio" name="mode" value="audio"><span>音声 → 意味</span></label>
+        <label class="option"><input type="radio" name="mode" value="meaning"><span>意味 → 単語</span></label>
+      </div>
+
+      <h2>3. 問題数</h2>
+      <div class="option-grid three" id="countList">
+        <label class="option"><input type="radio" name="count" value="10" checked><span>10問</span></label>
+        <label class="option"><input type="radio" name="count" value="20"><span>20問</span></label>
+        <label class="option"><input type="radio" name="count" value="0"><span>全問</span></label>
+      </div>
+      <label class="check"><input type="checkbox" id="weakFirst"> 正解回数の少ない単語を優先する</label>
+
+      <button id="startBtn" class="primary">スタート</button>
+
+      <div class="menu-footer">
+        <button id="listBtn" class="link-btn">単語一覧・正解回数を見る</button>
+        <span id="totalStats"></span>
+      </div>
+    </section>
+
+    <!-- クイズ画面 -->
+    <section id="quiz" class="hidden">
+      <div class="quiz-top">
+        <span id="progress"></span>
+        <span id="score"></span>
+      </div>
+      <div class="card">
+        <div id="question" class="question"></div>
+        <div id="pinyin" class="pinyin"></div>
+        <button id="speakBtn" class="speak" title="音声を再生">🔊 再生</button>
+        <div id="wordStat" class="word-stat"></div>
+      </div>
+      <div id="choices" class="choices"></div>
+      <div id="feedback" class="feedback"></div>
+      <button id="nextBtn" class="primary hidden">次へ</button>
+    </section>
+
+    <!-- 結果画面 -->
+    <section id="result" class="hidden">
+      <h2>結果</h2>
+      <p id="resultScore" class="result-score"></p>
+      <h3>間違えた単語</h3>
+      <ul id="missedList" class="word-table"></ul>
+      <div class="row">
+        <button id="retryBtn" class="primary">もう一度</button>
+        <button id="retryMissedBtn">間違えた単語だけ</button>
+      </div>
+    </section>
+
+    <!-- 単語一覧画面 -->
+    <section id="list" class="hidden">
+      <div class="tabs" id="listTabs"></div>
+      <table class="stats-table">
+        <thead><tr><th>単語</th><th>ピンイン</th><th>意味</th><th>正解</th><th>回答</th><th></th></tr></thead>
+        <tbody id="listBody"></tbody>
+      </table>
+      <button id="resetBtn" class="danger">正解回数をリセット</button>
+    </section>
+  </main>
+
+  <script src="words.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

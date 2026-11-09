@@ -143,3 +143,7 @@ button:disabled { cursor: default; }
 .choices.long .choice { text-align: left; font-size: 1rem; min-height: 0; padding: 14px 12px; }
 .question.sentence + .pinyin { font-size: 1.05rem; margin-top: 6px; }
 .word-stat { white-space: pre-line; }
+.choice.unknown { grid-column: 1 / -1; min-height: 0; padding: 10px; font-size: .95rem; color: var(--muted); border-style: dashed; }
+.choice.unknown.chosen { color: var(--text); border-style: solid; border-color: var(--muted); }
+.feedback.unknown { color: var(--muted); }
+.choice { -webkit-tap-highlight-color: transparent; }

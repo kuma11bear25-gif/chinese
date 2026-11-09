@@ -325,6 +325,10 @@
       b.addEventListener("click", () => answer(w, b));
       box.appendChild(b);
     }
+    // 「わからない」：不正解として扱い、正解を表示する
+    const unknown = el("button", "choice unknown", "？ わからない");
+    unknown.addEventListener("click", () => answer(null, unknown));
+    box.appendChild(unknown);
 
     if (mode === "audio" || mode === "sentence") speak(q.zh);
   };
@@ -333,19 +337,20 @@
     if (quiz.answered) return;
     quiz.answered = true;
     const q = quiz.questions[quiz.index];
-    const ok = picked.key === q.key;
+    const ok = picked !== null && picked.key === q.key;
     record(q, ok);
 
     if (ok) {
       quiz.correct += 1;
     } else {
       quiz.missed.push(q);
-      btn.classList.add("wrong");
+      btn.classList.add(picked === null ? "chosen" : "wrong");
     }
 
     // 正解の表示
     $("choices").querySelectorAll(".choice").forEach((b) => {
       b.disabled = true;
+      if (!b.dataset.key) return; // 「わからない」ボタン
       const w = BY_KEY.get(b.dataset.key);
       if (w.key === q.key) b.classList.add("correct");
       if (quiz.mode === "sentence") {
@@ -373,8 +378,8 @@
     $("score").textContent = `正解 ${quiz.correct}`;
 
     const fb = $("feedback");
-    fb.textContent = ok ? "○ 正解！" : "× 不正解";
-    fb.className = `feedback ${ok ? "ok" : "ng"}`;
+    fb.textContent = ok ? "○ 正解！" : picked === null ? "？ わからない ― 正解を確認しましょう" : "× 不正解";
+    fb.className = `feedback ${ok ? "ok" : picked === null ? "unknown" : "ng"}`;
 
     if (quiz.mode !== "audio" && quiz.mode !== "sentence") speak(q.zh);
 
@@ -480,10 +485,11 @@
     saveStats();
     renderList();
   });
-  // キーボード操作: 1〜4で選択、Enterで次へ
+  // キーボード操作: 1〜4で選択、5でわからない、Enterで次へ
   document.addEventListener("keydown", (e) => {
     if ($("quiz").classList.contains("hidden")) return;
-    if (!quiz.answered && /^[1-4]$/.test(e.key)) {
+    if (!quiz.answered && /^[1-5]$/.test(e.key)) {
+      // 1〜4: 選択肢、5: わからない
       $("choices").querySelectorAll(".choice")[Number(e.key) - 1]?.click();
     } else if (quiz.answered && e.key === "Enter" && document.activeElement !== $("nextBtn")) {
       nextQuestion();

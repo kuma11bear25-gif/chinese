@@ -147,3 +147,5 @@ button:disabled { cursor: default; }
 .choice.unknown.chosen { color: var(--text); border-style: solid; border-color: var(--muted); }
 .feedback.unknown { color: var(--muted); }
 .choice { -webkit-tap-highlight-color: transparent; }
+.quiz-top { gap: 8px; }
+.quiz-top #score { white-space: nowrap; }

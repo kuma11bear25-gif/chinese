@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "zh-vocab-stats-v1";
   const CHOICE_COUNT = 4;
-  const MODE_LABELS = { word: "単語 → 意味", audio: "音声 → 意味", meaning: "意味 → 単語", sentence: "文章の聞き取り" };
+  const MODE_LABELS = { word: "単語 → 意味", audio: "音声 → 意味", meaning: "意味 → 単語", sentence: "文章の聞き取り", phrase: "フレーズの聞き取り" };
 
   const $ = (id) => document.getElementById(id);
 
@@ -32,7 +32,18 @@
     });
   }
   const sentencesOf = (level) => SENTS.filter((w) => w.level === level);
-  const BY_KEY = new Map([...ALL, ...SENTS].map((w) => [w.key, w]));
+  // フレーズの聞き取り問題（2〜3語の言い回し）
+  const PHRS = [];
+  for (const [level, list] of Object.entries(HSK_PHRASES)) {
+    list.forEach(([zh, py, ja, point], i) => {
+      PHRS.push({ level, cat: "phrase", zh, py, ja, point, key: `phr${level}:${i}` });
+    });
+  }
+  const phrasesOf = (level) => PHRS.filter((w) => w.level === level);
+  // 聞き取りモード（文章・フレーズ）の判定と出題元
+  const isListen = (mode) => mode === "sentence" || mode === "phrase";
+  const listenSource = (mode) => (mode === "phrase" ? PHRS : SENTS);
+  const BY_KEY = new Map([...ALL, ...SENTS, ...PHRS].map((w) => [w.key, w]));
 
   // ---------- 正解回数の保存 ----------
   let stats = {};
@@ -51,7 +62,7 @@
     const byZh = new Map(ALL.map((w) => [w.zh, w]));
     let changed = false;
     for (const oldKey of Object.keys(stats)) {
-      if (oldKey.startsWith("hsk") || oldKey.startsWith("sent")) continue;
+      if (/^(hsk|sent|phr)/.test(oldKey)) continue;
       const zh = oldKey.split(":").pop();
       const w = byZh.get(zh);
       if (w) {
@@ -150,7 +161,7 @@
       label.append(input, span);
       box.appendChild(label);
     }
-    const sentenceMode = selected("mode") === "sentence";
+    const sentenceMode = isListen(selected("mode"));
     $("categoryBlock").classList.toggle("hidden", sentenceMode);
     $("countHeading").textContent = sentenceMode ? "3. 問題数" : "4. 問題数";
     const totalCorrect = Object.values(stats).reduce((n, s) => n + s.c, 0);
@@ -175,7 +186,7 @@
     const cat = selected("category");
     const mode = selected("mode");
     const count = Number(selected("count"));
-    let pool = shuffle(mode === "sentence" ? sentencesOf(level) : wordsOf(level, cat));
+    let pool = shuffle(isListen(mode) ? listenSource(mode).filter((w) => w.level === level) : wordsOf(level, cat));
     if ($("weakFirst").checked) {
       // 正解回数が少ない順（同数はランダムのまま）
       pool.sort((a, b) => statOf(a).c - statOf(b).c);
@@ -249,9 +260,9 @@
 
   const makeChoices = (answer, mode) => {
     const picks = [answer];
-    if (mode === "sentence") {
+    if (isListen(mode)) {
       // 同じ級の別の文章の意味をダミーにする（足りなければ近い級から補う）
-      const near = shuffle(SENTS).sort(
+      const near = shuffle(listenSource(mode)).sort(
         (a, b) => Math.abs(a.level - answer.level) - Math.abs(b.level - answer.level)
       );
       for (const w of near) {
@@ -303,9 +314,9 @@
     qEl.textContent = mode === "word" ? q.zh : mode === "meaning" ? q.ja : "？";
     $("pinyin").textContent = "";
     $("speakBtn").classList.toggle("hidden", mode === "meaning");
-    $("slowBtn").classList.toggle("hidden", mode !== "sentence");
+    $("slowBtn").classList.toggle("hidden", !isListen(mode));
     const s = statOf(q);
-    $("wordStat").textContent = `${mode === "sentence" ? "この文章" : "この単語"}：正解 ${s.c}回 / 回答 ${s.a}回`;
+    $("wordStat").textContent = `${mode === "sentence" ? "この文章" : mode === "phrase" ? "このフレーズ" : "この単語"}：正解 ${s.c}回 / 回答 ${s.a}回`;
     $("feedback").textContent = "";
     $("feedback").className = "feedback";
     $("nextBtn").classList.add("hidden");
@@ -330,7 +341,7 @@
     unknown.addEventListener("click", () => answer(null, unknown));
     box.appendChild(unknown);
 
-    if (mode === "audio" || mode === "sentence") speak(q.zh);
+    if (mode === "audio" || isListen(mode)) speak(q.zh);
   };
 
   const answer = (picked, btn) => {
@@ -353,7 +364,7 @@
       if (!b.dataset.key) return; // 「わからない」ボタン
       const w = BY_KEY.get(b.dataset.key);
       if (w.key === q.key) b.classList.add("correct");
-      if (quiz.mode === "sentence") {
+      if (isListen(quiz.mode)) {
         // 文章モードは選択肢に中国語を出さない（正解の文は上に表示）
       } else if (quiz.mode === "meaning") {
         b.appendChild(el("span", "sub", w.py));
@@ -374,6 +385,8 @@
     const s = statOf(q);
     $("wordStat").textContent = quiz.mode === "sentence"
       ? `文法ポイント：${q.point}\nこの文章：正解 ${s.c}回 / 回答 ${s.a}回`
+      : quiz.mode === "phrase"
+      ? `使っている単語：${q.point}\nこのフレーズ：正解 ${s.c}回 / 回答 ${s.a}回`
       : `この単語：正解 ${s.c}回 / 回答 ${s.a}回`;
     $("score").textContent = `正解 ${quiz.correct}`;
 
@@ -381,7 +394,7 @@
     fb.textContent = ok ? "○ 正解！" : picked === null ? "？ わからない ― 正解を確認しましょう" : "× 不正解";
     fb.className = `feedback ${ok ? "ok" : picked === null ? "unknown" : "ng"}`;
 
-    if (quiz.mode !== "audio" && quiz.mode !== "sentence") speak(q.zh);
+    if (quiz.mode !== "audio" && !isListen(quiz.mode)) speak(q.zh);
 
     const next = $("nextBtn");
     next.textContent = quiz.index + 1 < quiz.questions.length ? "次へ" : "結果を見る";
@@ -467,7 +480,7 @@
     input.checked = i === 0;
     input.addEventListener("change", renderMenu);
     const span = el("span", null, label);
-    span.appendChild(el("small", null, `${wordsOf(lv, "all").length}語・${sentencesOf(lv).length}文`));
+    span.appendChild(el("small", null, `${wordsOf(lv, "all").length}語・${sentencesOf(lv).length}文・${phrasesOf(lv).length}句`));
     wrap.append(input, span);
     $("levelList").appendChild(wrap);
   });

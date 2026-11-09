@@ -100,14 +100,12 @@ button:disabled { cursor: default; }
   box-shadow: 0 2px 8px rgba(0,0,0,.06);
 }
 .question { font-size: 3rem; font-weight: bold; min-height: 1.2em; word-break: break-word; }
-.question.meaning { font-size: 1.6rem; }
 .pinyin { font-size: 1.3rem; color: var(--accent); min-height: 1.6em; }
 .speak { margin-top: 8px; }
 .word-stat { margin-top: 8px; font-size: .85rem; color: var(--muted); }
 
 .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
 .choice { padding: 16px 8px; font-size: 1.05rem; min-height: 64px; }
-.choice.hanzi { font-size: 1.6rem; }
 .choice .sub { display: block; font-size: .85rem; color: var(--muted); }
 .choice.correct { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); font-weight: bold; }
 .choice.wrong { background: var(--ng-soft); border-color: var(--ng); color: var(--ng); }
@@ -137,11 +135,7 @@ button:disabled { cursor: default; }
 }
 .tab-sep { width: 100%; height: 0; }
 .stats-table td.zh, .stats-table td.num, .stats-table th { white-space: nowrap; }
-.question.sentence { font-size: 1.5rem; line-height: 1.6; text-align: left; }
 .pinyin { white-space: pre-line; }
-.choices.long { grid-template-columns: 1fr; }
-.choices.long .choice { text-align: left; font-size: 1rem; min-height: 0; padding: 14px 12px; }
-.question.sentence + .pinyin { font-size: 1.05rem; margin-top: 6px; }
 .word-stat { white-space: pre-line; }
 .choice.unknown { grid-column: 1 / -1; min-height: 0; padding: 10px; font-size: .95rem; color: var(--muted); border-style: dashed; }
 .choice.unknown.chosen { color: var(--text); border-style: solid; border-color: var(--muted); }

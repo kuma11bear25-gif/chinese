@@ -15,17 +15,23 @@
   <main>
     <!-- メニュー画面 -->
     <section id="menu">
-      <h2>1. 品詞を選ぶ</h2>
+      <h2>1. レベルを選ぶ</h2>
+      <div class="option-grid">
+        <label class="option"><input type="radio" name="level" value="basic" checked><span>初級<small>HSK1〜3程度</small></span></label>
+        <label class="option"><input type="radio" name="level" value="advanced"><span>上級<small>HSK5〜6程度</small></span></label>
+      </div>
+
+      <h2>2. 品詞を選ぶ</h2>
       <div id="categoryList" class="option-grid"></div>
 
-      <h2>2. 出題モードを選ぶ</h2>
+      <h2>3. 出題モードを選ぶ</h2>
       <div class="option-grid three" id="modeList">
         <label class="option"><input type="radio" name="mode" value="word" checked><span>単語 → 意味</span></label>
         <label class="option"><input type="radio" name="mode" value="audio"><span>音声 → 意味</span></label>
         <label class="option"><input type="radio" name="mode" value="meaning"><span>意味 → 単語</span></label>
       </div>
 
-      <h2>3. 問題数</h2>
+      <h2>4. 問題数</h2>
       <div class="option-grid three" id="countList">
         <label class="option"><input type="radio" name="count" value="10" checked><span>10問</span></label>
         <label class="option"><input type="radio" name="count" value="20"><span>20問</span></label>
@@ -82,6 +88,7 @@
   </main>
 
   <script src="words.js"></script>
+  <script src="words_adv.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

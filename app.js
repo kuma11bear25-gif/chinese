@@ -8,14 +8,23 @@
   const $ = (id) => document.getElementById(id);
 
   // ---------- データ ----------
-  // 全単語を {cat, zh, py, ja, key} に展開
+  // レベル定義（初級のキーは以前の保存データと互換を保つため接頭辞なし）
+  const LEVELS = {
+    basic: { label: "初級", words: WORDS, prefix: "" },
+    advanced: { label: "上級", words: WORDS_ADVANCED, prefix: "adv:" },
+  };
+  const CATS = Object.keys(WORDS);
+  // 全単語を {level, cat, zh, py, ja, key} に展開
   const ALL = [];
-  for (const [cat, { list }] of Object.entries(WORDS)) {
-    for (const [zh, py, ja] of list) {
-      ALL.push({ cat, zh, py, ja, key: `${cat}:${zh}` });
+  for (const [level, { words, prefix }] of Object.entries(LEVELS)) {
+    for (const [cat, { list }] of Object.entries(words)) {
+      for (const [zh, py, ja] of list) {
+        ALL.push({ level, cat, zh, py, ja, key: `${prefix}${cat}:${zh}` });
+      }
     }
   }
-  const wordsOf = (cat) => (cat === "all" ? ALL : ALL.filter((w) => w.cat === cat));
+  const wordsOf = (level, cat) =>
+    ALL.filter((w) => w.level === level && (cat === "all" || w.cat === cat));
 
   // ---------- 正解回数の保存 ----------
   let stats = {};
@@ -91,15 +100,16 @@
   };
 
   // ---------- メニュー ----------
-  const categoryKeys = ["all", ...Object.keys(WORDS)];
+  const categoryKeys = ["all", ...CATS];
   const catLabel = (cat) => (cat === "all" ? "すべて" : WORDS[cat].label);
 
   const renderMenu = () => {
     const box = $("categoryList");
-    const checked = box.querySelector("input:checked")?.value || Object.keys(WORDS)[0];
+    const checked = box.querySelector("input:checked")?.value || CATS[0];
+    const level = selected("level");
     box.innerHTML = "";
     for (const cat of categoryKeys) {
-      const words = wordsOf(cat);
+      const words = wordsOf(level, cat);
       const mastered = words.filter((w) => statOf(w).c > 0).length;
       const label = el("label", "option");
       const input = el("input");
@@ -130,10 +140,11 @@
   };
 
   const startFromMenu = () => {
+    const level = selected("level");
     const cat = selected("category");
     const mode = selected("mode");
     const count = Number(selected("count"));
-    let pool = shuffle(wordsOf(cat));
+    let pool = shuffle(wordsOf(level, cat));
     if ($("weakFirst").checked) {
       // 正解回数が少ない順（同数はランダムのまま）
       pool.sort((a, b) => statOf(a).c - statOf(b).c);
@@ -143,8 +154,8 @@
   };
 
   const makeChoices = (answer) => {
-    // 同じ品詞から、意味・漢字が重複しないダミーを選ぶ
-    const sameCat = ALL.filter((w) => w.cat === answer.cat);
+    // 同じレベル・品詞から、意味・漢字が重複しないダミーを選ぶ
+    const sameCat = wordsOf(answer.level, answer.cat);
     const pool = shuffle(sameCat.length >= CHOICE_COUNT ? sameCat : ALL);
     const picks = [answer];
     for (const w of pool) {
@@ -160,7 +171,7 @@
     const { mode } = quiz;
     quiz.answered = false;
 
-    $("progress").textContent = `${MODE_LABELS[mode]}　${quiz.index + 1} / ${quiz.questions.length}`;
+    $("progress").textContent = `${LEVELS[q.level].label}・${MODE_LABELS[mode]}　${quiz.index + 1} / ${quiz.questions.length}`;
     $("score").textContent = `正解 ${quiz.correct}`;
 
     const qEl = $("question");
@@ -265,18 +276,25 @@
   };
 
   // ---------- 単語一覧 ----------
-  let listCat = Object.keys(WORDS)[0];
+  let listLevel = "basic";
+  let listCat = CATS[0];
   const renderList = () => {
     const tabs = $("listTabs");
     tabs.innerHTML = "";
-    for (const cat of Object.keys(WORDS)) {
+    for (const level of Object.keys(LEVELS)) {
+      const b = el("button", level === listLevel ? "active" : "", LEVELS[level].label);
+      b.addEventListener("click", () => { listLevel = level; renderList(); });
+      tabs.appendChild(b);
+    }
+    tabs.appendChild(el("span", "tab-sep"));
+    for (const cat of CATS) {
       const b = el("button", cat === listCat ? "active" : "", WORDS[cat].label);
       b.addEventListener("click", () => { listCat = cat; renderList(); });
       tabs.appendChild(b);
     }
     const body = $("listBody");
     body.innerHTML = "";
-    for (const w of wordsOf(listCat)) {
+    for (const w of wordsOf(listLevel, listCat)) {
       const s = statOf(w);
       const tr = el("tr");
       const play = el("button", "play", "🔊");
@@ -298,6 +316,7 @@
 
   // ---------- イベント ----------
   $("startBtn").addEventListener("click", startFromMenu);
+  document.querySelectorAll('input[name="level"]').forEach((r) => r.addEventListener("change", renderMenu));
   $("homeBtn").addEventListener("click", () => show("menu"));
   $("speakBtn").addEventListener("click", () => speak(quiz.questions[quiz.index].zh));
   $("nextBtn").addEventListener("click", nextQuestion);

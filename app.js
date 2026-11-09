@@ -9,17 +9,16 @@
 
   // ---------- データ ----------
   // レベル定義（初級のキーは以前の保存データと互換を保つため接頭辞なし）
-  const LEVELS = {
-    basic: { label: "初級", words: WORDS, prefix: "" },
-    advanced: { label: "上級", words: WORDS_ADVANCED, prefix: "adv:" },
-  };
-  const CATS = Object.keys(WORDS);
+  // レベル = HSK1〜6級
+  const LEVELS = {};
+  for (const lv of Object.keys(HSK_WORDS)) LEVELS[lv] = { label: `HSK${lv}級` };
+  const CATS = Object.keys(CATEGORY_LABELS);
   // 全単語を {level, cat, zh, py, ja, key} に展開
   const ALL = [];
-  for (const [level, { words, prefix }] of Object.entries(LEVELS)) {
-    for (const [cat, { list }] of Object.entries(words)) {
+  for (const [level, cats] of Object.entries(HSK_WORDS)) {
+    for (const [cat, list] of Object.entries(cats)) {
       for (const [zh, py, ja] of list) {
-        ALL.push({ level, cat, zh, py, ja, key: `${prefix}${cat}:${zh}` });
+        ALL.push({ level, cat, zh, py, ja, key: `hsk${level}:${cat}:${zh}` });
       }
     }
   }
@@ -38,6 +37,23 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(stats));
     } catch (_) { /* 保存できない環境では無視 */ }
   };
+  // 旧形式（初級/上級時代）のキー「品詞:漢字」「adv:品詞:漢字」を、同じ漢字のHSK単語へ引き継ぐ
+  (() => {
+    const byZh = new Map(ALL.map((w) => [w.zh, w]));
+    let changed = false;
+    for (const oldKey of Object.keys(stats)) {
+      if (oldKey.startsWith("hsk")) continue;
+      const zh = oldKey.split(":").pop();
+      const w = byZh.get(zh);
+      if (w) {
+        const cur = stats[w.key] || { c: 0, a: 0 };
+        stats[w.key] = { c: cur.c + stats[oldKey].c, a: cur.a + stats[oldKey].a };
+      }
+      delete stats[oldKey];
+      changed = true;
+    }
+    if (changed) saveStats();
+  })();
   const statOf = (w) => stats[w.key] || { c: 0, a: 0 };
   const record = (w, correct) => {
     const s = statOf(w);
@@ -101,7 +117,7 @@
 
   // ---------- メニュー ----------
   const categoryKeys = ["all", ...CATS];
-  const catLabel = (cat) => (cat === "all" ? "すべて" : WORDS[cat].label);
+  const catLabel = (cat) => (cat === "all" ? "すべて" : CATEGORY_LABELS[cat]);
 
   const renderMenu = () => {
     const box = $("categoryList");
@@ -236,8 +252,10 @@
     }
 
     // それ以外：同じレベル・品詞から、意味・漢字が重複しないダミーを選ぶ
-    const sameCat = wordsOf(answer.level, answer.cat);
-    const pool = shuffle(sameCat.length >= CHOICE_COUNT ? sameCat : ALL);
+    // 品詞の語数が足りないとき（HSK1の副詞など）は同じ級の全品詞→全単語の順に広げる
+    let pool = wordsOf(answer.level, answer.cat);
+    if (pool.length < CHOICE_COUNT * 2) pool = wordsOf(answer.level, "all");
+    pool = [...shuffle(pool), ...shuffle(ALL)];
     for (const w of pool) {
       if (picks.length >= CHOICE_COUNT) break;
       if (usable(w)) picks.push(w);
@@ -358,7 +376,7 @@
   };
 
   // ---------- 単語一覧 ----------
-  let listLevel = "basic";
+  let listLevel = Object.keys(LEVELS)[0];
   let listCat = CATS[0];
   const renderList = () => {
     const tabs = $("listTabs");
@@ -370,7 +388,7 @@
     }
     tabs.appendChild(el("span", "tab-sep"));
     for (const cat of CATS) {
-      const b = el("button", cat === listCat ? "active" : "", WORDS[cat].label);
+      const b = el("button", cat === listCat ? "active" : "", CATEGORY_LABELS[cat]);
       b.addEventListener("click", () => { listCat = cat; renderList(); });
       tabs.appendChild(b);
     }
@@ -398,7 +416,20 @@
 
   // ---------- イベント ----------
   $("startBtn").addEventListener("click", startFromMenu);
-  document.querySelectorAll('input[name="level"]').forEach((r) => r.addEventListener("change", renderMenu));
+  // HSK級の選択肢を生成
+  Object.entries(LEVELS).forEach(([lv, { label }], i) => {
+    const wrap = el("label", "option");
+    const input = el("input");
+    input.type = "radio";
+    input.name = "level";
+    input.value = lv;
+    input.checked = i === 0;
+    input.addEventListener("change", renderMenu);
+    const span = el("span", null, label);
+    span.appendChild(el("small", null, `${wordsOf(lv, "all").length}語`));
+    wrap.append(input, span);
+    $("levelList").appendChild(wrap);
+  });
   $("homeBtn").addEventListener("click", () => show("menu"));
   $("speakBtn").addEventListener("click", () => speak(quiz.questions[quiz.index].zh));
   $("nextBtn").addEventListener("click", nextQuestion);

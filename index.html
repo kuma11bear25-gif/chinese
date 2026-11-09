@@ -15,11 +15,8 @@
   <main>
     <!-- メニュー画面 -->
     <section id="menu">
-      <h2>1. レベルを選ぶ</h2>
-      <div class="option-grid">
-        <label class="option"><input type="radio" name="level" value="basic" checked><span>初級<small>HSK1〜3程度</small></span></label>
-        <label class="option"><input type="radio" name="level" value="advanced"><span>上級<small>HSK5〜6程度</small></span></label>
-      </div>
+      <h2>1. HSKの級を選ぶ</h2>
+      <div id="levelList" class="option-grid three"></div>
 
       <h2>2. 品詞を選ぶ</h2>
       <div id="categoryList" class="option-grid"></div>
@@ -88,7 +85,6 @@
   </main>
 
   <script src="words.js"></script>
-  <script src="words_adv.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

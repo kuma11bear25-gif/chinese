@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "zh-vocab-stats-v1";
   const CHOICE_COUNT = 4;
-  const MODE_LABELS = { word: "単語 → 意味", audio: "音声 → 意味", meaning: "意味 → 単語" };
+  const MODE_LABELS = { word: "単語 → 意味", audio: "音声 → 意味", meaning: "意味 → 単語", sentence: "文章の聞き取り" };
 
   const $ = (id) => document.getElementById(id);
 
@@ -24,6 +24,15 @@
   }
   const wordsOf = (level, cat) =>
     ALL.filter((w) => w.level === level && (cat === "all" || w.cat === cat));
+  // 文章の聞き取り問題を {level, cat, zh, py, ja, point, key} に展開
+  const SENTS = [];
+  for (const [level, list] of Object.entries(HSK_SENTENCES)) {
+    list.forEach(([zh, py, ja, point], i) => {
+      SENTS.push({ level, cat: "sentence", zh, py, ja, point, key: `sent${level}:${i}` });
+    });
+  }
+  const sentencesOf = (level) => SENTS.filter((w) => w.level === level);
+  const BY_KEY = new Map([...ALL, ...SENTS].map((w) => [w.key, w]));
 
   // ---------- 正解回数の保存 ----------
   let stats = {};
@@ -42,7 +51,7 @@
     const byZh = new Map(ALL.map((w) => [w.zh, w]));
     let changed = false;
     for (const oldKey of Object.keys(stats)) {
-      if (oldKey.startsWith("hsk")) continue;
+      if (oldKey.startsWith("hsk") || oldKey.startsWith("sent")) continue;
       const zh = oldKey.split(":").pop();
       const w = byZh.get(zh);
       if (w) {
@@ -77,7 +86,7 @@
     pickVoice();
     speechSynthesis.onvoiceschanged = pickVoice;
   }
-  const speak = (text) => {
+  const speak = (text, rate = 0.85) => {
     if (!("speechSynthesis" in window)) {
       alert("このブラウザは音声読み上げに対応していません。");
       return;
@@ -86,7 +95,7 @@
     const u = new SpeechSynthesisUtterance(text);
     u.lang = "zh-CN";
     if (zhVoice) u.voice = zhVoice;
-    u.rate = 0.85;
+    u.rate = rate;
     speechSynthesis.speak(u);
   };
 
@@ -141,6 +150,9 @@
       label.append(input, span);
       box.appendChild(label);
     }
+    const sentenceMode = selected("mode") === "sentence";
+    $("categoryBlock").classList.toggle("hidden", sentenceMode);
+    $("countHeading").textContent = sentenceMode ? "3. 問題数" : "4. 問題数";
     const totalCorrect = Object.values(stats).reduce((n, s) => n + s.c, 0);
     const totalAnswered = Object.values(stats).reduce((n, s) => n + s.a, 0);
     $("totalStats").textContent = `累計 正解 ${totalCorrect} / 回答 ${totalAnswered}`;
@@ -163,7 +175,7 @@
     const cat = selected("category");
     const mode = selected("mode");
     const count = Number(selected("count"));
-    let pool = shuffle(wordsOf(level, cat));
+    let pool = shuffle(mode === "sentence" ? sentencesOf(level) : wordsOf(level, cat));
     if ($("weakFirst").checked) {
       // 正解回数が少ない順（同数はランダムのまま）
       pool.sort((a, b) => statOf(a).c - statOf(b).c);
@@ -237,6 +249,17 @@
 
   const makeChoices = (answer, mode) => {
     const picks = [answer];
+    if (mode === "sentence") {
+      // 同じ級の別の文章の意味をダミーにする（足りなければ近い級から補う）
+      const near = shuffle(SENTS).sort(
+        (a, b) => Math.abs(a.level - answer.level) - Math.abs(b.level - answer.level)
+      );
+      for (const w of near) {
+        if (picks.length >= CHOICE_COUNT) break;
+        if (!picks.some((p) => p.key === w.key || p.ja === w.ja)) picks.push(w);
+      }
+      return shuffle(picks);
+    }
     const usable = (w) =>
       !picks.some((p) => p.ja === w.ja || p.zh === w.zh || samePronunciation(p, w));
 
@@ -276,17 +299,20 @@
 
     const qEl = $("question");
     qEl.classList.toggle("meaning", mode === "meaning");
+    qEl.classList.remove("sentence");
     qEl.textContent = mode === "word" ? q.zh : mode === "meaning" ? q.ja : "？";
     $("pinyin").textContent = "";
     $("speakBtn").classList.toggle("hidden", mode === "meaning");
+    $("slowBtn").classList.toggle("hidden", mode !== "sentence");
     const s = statOf(q);
-    $("wordStat").textContent = `この単語：正解 ${s.c}回 / 回答 ${s.a}回`;
+    $("wordStat").textContent = `${mode === "sentence" ? "この文章" : "この単語"}：正解 ${s.c}回 / 回答 ${s.a}回`;
     $("feedback").textContent = "";
     $("feedback").className = "feedback";
     $("nextBtn").classList.add("hidden");
 
     const box = $("choices");
     box.innerHTML = "";
+    box.classList.toggle("long", mode === "sentence");
     for (const w of makeChoices(q, mode)) {
       const b = el("button", "choice");
       if (mode === "meaning") {
@@ -300,7 +326,7 @@
       box.appendChild(b);
     }
 
-    if (mode === "audio") speak(q.zh);
+    if (mode === "audio" || mode === "sentence") speak(q.zh);
   };
 
   const answer = (picked, btn) => {
@@ -320,9 +346,11 @@
     // 正解の表示
     $("choices").querySelectorAll(".choice").forEach((b) => {
       b.disabled = true;
-      const w = ALL.find((x) => x.key === b.dataset.key);
+      const w = BY_KEY.get(b.dataset.key);
       if (w.key === q.key) b.classList.add("correct");
-      if (quiz.mode === "meaning") {
+      if (quiz.mode === "sentence") {
+        // 文章モードは選択肢に中国語を出さない（正解の文は上に表示）
+      } else if (quiz.mode === "meaning") {
         b.appendChild(el("span", "sub", w.py));
       } else if (quiz.mode === "audio") {
         // 発音の違いが分かるようにピンインも表示
@@ -335,17 +363,20 @@
     // 回答後はどのモードでも漢字・ピンイン・意味をまとめて表示
     $("question").textContent = q.zh;
     $("question").classList.remove("meaning");
-    $("pinyin").textContent = `${q.py}　${q.ja}`;
+    $("question").classList.toggle("sentence", quiz.mode === "sentence");
+    $("pinyin").textContent = quiz.mode === "sentence" ? `${q.py}\n${q.ja}` : `${q.py}　${q.ja}`;
     $("speakBtn").classList.remove("hidden");
     const s = statOf(q);
-    $("wordStat").textContent = `この単語：正解 ${s.c}回 / 回答 ${s.a}回`;
+    $("wordStat").textContent = quiz.mode === "sentence"
+      ? `文法ポイント：${q.point}\nこの文章：正解 ${s.c}回 / 回答 ${s.a}回`
+      : `この単語：正解 ${s.c}回 / 回答 ${s.a}回`;
     $("score").textContent = `正解 ${quiz.correct}`;
 
     const fb = $("feedback");
     fb.textContent = ok ? "○ 正解！" : "× 不正解";
     fb.className = `feedback ${ok ? "ok" : "ng"}`;
 
-    if (quiz.mode !== "audio") speak(q.zh);
+    if (quiz.mode !== "audio" && quiz.mode !== "sentence") speak(q.zh);
 
     const next = $("nextBtn");
     next.textContent = quiz.index + 1 < quiz.questions.length ? "次へ" : "結果を見る";
@@ -431,12 +462,14 @@
     input.checked = i === 0;
     input.addEventListener("change", renderMenu);
     const span = el("span", null, label);
-    span.appendChild(el("small", null, `${wordsOf(lv, "all").length}語`));
+    span.appendChild(el("small", null, `${wordsOf(lv, "all").length}語・${sentencesOf(lv).length}文`));
     wrap.append(input, span);
     $("levelList").appendChild(wrap);
   });
   $("homeBtn").addEventListener("click", () => show("menu"));
   $("speakBtn").addEventListener("click", () => speak(quiz.questions[quiz.index].zh));
+  $("slowBtn").addEventListener("click", () => speak(quiz.questions[quiz.index].zh, 0.55));
+  document.querySelectorAll('input[name="mode"]').forEach((r) => r.addEventListener("change", renderMenu));
   $("nextBtn").addEventListener("click", nextQuestion);
   $("retryBtn").addEventListener("click", () => startQuiz(shuffle(quiz.questions), quiz.mode, quiz.cat));
   $("retryMissedBtn").addEventListener("click", () => startQuiz(shuffle(quiz.missed), quiz.mode, quiz.cat));

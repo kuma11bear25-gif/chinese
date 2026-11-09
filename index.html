@@ -18,17 +18,20 @@
       <h2>1. HSKの級を選ぶ</h2>
       <div id="levelList" class="option-grid three"></div>
 
-      <h2>2. 品詞を選ぶ</h2>
-      <div id="categoryList" class="option-grid"></div>
-
-      <h2>3. 出題モードを選ぶ</h2>
-      <div class="option-grid three" id="modeList">
+      <h2>2. 出題モードを選ぶ</h2>
+      <div class="option-grid" id="modeList">
         <label class="option"><input type="radio" name="mode" value="word" checked><span>単語 → 意味</span></label>
         <label class="option"><input type="radio" name="mode" value="audio"><span>音声 → 意味</span></label>
         <label class="option"><input type="radio" name="mode" value="meaning"><span>意味 → 単語</span></label>
+        <label class="option"><input type="radio" name="mode" value="sentence"><span>文章の聞き取り<small>読み上げを聞いて意味を選ぶ</small></span></label>
       </div>
 
-      <h2>4. 問題数</h2>
+      <div id="categoryBlock">
+        <h2>3. 品詞を選ぶ</h2>
+        <div id="categoryList" class="option-grid"></div>
+      </div>
+
+      <h2 id="countHeading">4. 問題数</h2>
       <div class="option-grid three" id="countList">
         <label class="option"><input type="radio" name="count" value="10" checked><span>10問</span></label>
         <label class="option"><input type="radio" name="count" value="20"><span>20問</span></label>
@@ -54,6 +57,7 @@
         <div id="question" class="question"></div>
         <div id="pinyin" class="pinyin"></div>
         <button id="speakBtn" class="speak" title="音声を再生">🔊 再生</button>
+        <button id="slowBtn" class="speak hidden" title="ゆっくり再生">🐢 ゆっくり</button>
         <div id="wordStat" class="word-stat"></div>
       </div>
       <div id="choices" class="choices"></div>
@@ -85,6 +89,7 @@
   </main>
 
   <script src="words.js"></script>
+  <script src="sentences.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

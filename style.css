@@ -137,3 +137,9 @@ button:disabled { cursor: default; }
 }
 .tab-sep { width: 100%; height: 0; }
 .stats-table td.zh, .stats-table td.num, .stats-table th { white-space: nowrap; }
+.question.sentence { font-size: 1.5rem; line-height: 1.6; text-align: left; }
+.pinyin { white-space: pre-line; }
+.choices.long { grid-template-columns: 1fr; }
+.choices.long .choice { text-align: left; font-size: 1rem; min-height: 0; padding: 14px 12px; }
+.question.sentence + .pinyin { font-size: 1.05rem; margin-top: 6px; }
+.word-stat { white-space: pre-line; }

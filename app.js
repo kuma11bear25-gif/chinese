@@ -153,15 +153,94 @@
     startQuiz(shuffle(pool), mode, cat);
   };
 
-  const makeChoices = (answer) => {
-    // 同じレベル・品詞から、意味・漢字が重複しないダミーを選ぶ
+  // ---------- 発音の近さ ----------
+  const TONE_MAP = {
+    ā: ["a", 1], á: ["a", 2], ǎ: ["a", 3], à: ["a", 4],
+    ē: ["e", 1], é: ["e", 2], ě: ["e", 3], è: ["e", 4],
+    ī: ["i", 1], í: ["i", 2], ǐ: ["i", 3], ì: ["i", 4],
+    ō: ["o", 1], ó: ["o", 2], ǒ: ["o", 3], ò: ["o", 4],
+    ū: ["u", 1], ú: ["u", 2], ǔ: ["u", 3], ù: ["u", 4],
+    ǖ: ["v", 1], ǘ: ["v", 2], ǚ: ["v", 3], ǜ: ["v", 4], ü: ["v", 0],
+  };
+  // ピンインを「声調なしの綴り」と「声調の並び」に分解（結果はキャッシュ）
+  const phonCache = new Map();
+  const phonetic = (w) => {
+    if (phonCache.has(w.key)) return phonCache.get(w.key);
+    let plain = "";
+    const tones = [];
+    for (const ch of w.py.toLowerCase().replace(/['’\s]/g, "")) {
+      const t = TONE_MAP[ch];
+      if (t) {
+        plain += t[0];
+        if (t[1]) tones.push(t[1]);
+      } else {
+        plain += ch;
+      }
+    }
+    // 聞き間違えやすい音をまとめた綴り（zh/z, ch/c, sh/s, -ng/-n, l/n）
+    const loose = plain
+      .replace(/zh/g, "z").replace(/ch/g, "c").replace(/sh/g, "s")
+      .replace(/ng/g, "n").replace(/l/g, "n");
+    const r = { plain, loose, tones: tones.join("") };
+    phonCache.set(w.key, r);
+    return r;
+  };
+  const editDistance = (a, b) => {
+    const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+    for (let j = 1; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++) {
+      for (let j = 1; j <= b.length; j++) {
+        d[i][j] = Math.min(
+          d[i - 1][j] + 1,
+          d[i][j - 1] + 1,
+          d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+        );
+      }
+    }
+    return d[a.length][b.length];
+  };
+  // 小さいほど発音が近い
+  const soundDistance = (a, b) => {
+    const pa = phonetic(a);
+    const pb = phonetic(b);
+    return (
+      editDistance(pa.loose, pb.loose) * 3 +
+      editDistance(pa.plain, pb.plain) * 2 +
+      editDistance(pa.tones, pb.tones) +
+      Math.abs([...a.zh].length - [...b.zh].length) * 2
+    );
+  };
+  const samePronunciation = (a, b) => {
+    const pa = phonetic(a);
+    const pb = phonetic(b);
+    return pa.plain === pb.plain && pa.tones === pb.tones;
+  };
+
+  const makeChoices = (answer, mode) => {
+    const picks = [answer];
+    const usable = (w) =>
+      !picks.some((p) => p.ja === w.ja || p.zh === w.zh || samePronunciation(p, w));
+
+    if (mode === "audio") {
+      // 音声モード：全単語から発音の近いものを上位から少しランダムに選ぶ
+      const ranked = shuffle(ALL)
+        .filter((w) => w.key !== answer.key)
+        .map((w) => ({ w, d: soundDistance(answer, w) }))
+        .sort((x, y) => x.d - y.d);
+      const top = shuffle(ranked.slice(0, (CHOICE_COUNT - 1) * 2).map((x) => x.w));
+      for (const w of [...top, ...ranked.map((x) => x.w)]) {
+        if (picks.length >= CHOICE_COUNT) break;
+        if (usable(w)) picks.push(w);
+      }
+      return shuffle(picks);
+    }
+
+    // それ以外：同じレベル・品詞から、意味・漢字が重複しないダミーを選ぶ
     const sameCat = wordsOf(answer.level, answer.cat);
     const pool = shuffle(sameCat.length >= CHOICE_COUNT ? sameCat : ALL);
-    const picks = [answer];
     for (const w of pool) {
       if (picks.length >= CHOICE_COUNT) break;
-      if (picks.some((p) => p.ja === w.ja || p.zh === w.zh)) continue;
-      picks.push(w);
+      if (usable(w)) picks.push(w);
     }
     return shuffle(picks);
   };
@@ -187,7 +266,7 @@
 
     const box = $("choices");
     box.innerHTML = "";
-    for (const w of makeChoices(q)) {
+    for (const w of makeChoices(q, mode)) {
       const b = el("button", "choice");
       if (mode === "meaning") {
         b.classList.add("hanzi");
@@ -224,6 +303,9 @@
       if (w.key === q.key) b.classList.add("correct");
       if (quiz.mode === "meaning") {
         b.appendChild(el("span", "sub", w.py));
+      } else if (quiz.mode === "audio") {
+        // 発音の違いが分かるようにピンインも表示
+        b.appendChild(el("span", "sub", `${w.zh}  ${w.py}`));
       } else {
         b.appendChild(el("span", "sub", w.zh));
       }

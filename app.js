@@ -121,10 +121,13 @@
 
   const renderMenu = () => {
     const box = $("categoryList");
-    const checked = box.querySelector("input:checked")?.value || CATS[0];
     const level = selected("level");
+    // その級に単語がある品詞だけを表示
+    const cats = categoryKeys.filter((cat) => wordsOf(level, cat).length > 0);
+    let checked = box.querySelector("input:checked")?.value;
+    if (!cats.includes(checked)) checked = "all";
     box.innerHTML = "";
-    for (const cat of categoryKeys) {
+    for (const cat of cats) {
       const words = wordsOf(level, cat);
       const mastered = words.filter((w) => statOf(w).c > 0).length;
       const label = el("label", "option");
@@ -387,7 +390,9 @@
       tabs.appendChild(b);
     }
     tabs.appendChild(el("span", "tab-sep"));
-    for (const cat of CATS) {
+    const listCats = CATS.filter((cat) => wordsOf(listLevel, cat).length > 0);
+    if (!listCats.includes(listCat)) listCat = listCats[0];
+    for (const cat of listCats) {
       const b = el("button", cat === listCat ? "active" : "", CATEGORY_LABELS[cat]);
       b.addEventListener("click", () => { listCat = cat; renderList(); });
       tabs.appendChild(b);

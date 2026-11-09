@@ -33,3 +33,7 @@
 
 ## データの出典
 級・品詞・ピンインは [complete-hsk-vocabulary](https://github.com/drkameleon/complete-hsk-vocabulary)（MIT License）を元にしています。日本語訳は独自に付けたものです。
+
+## 更新時の注意
+スマホなどで古いファイルが残らないよう、`index.html` で読み込む CSS・JS には `?v=日付` の版番号を付けています。
+`app.js` などを変更したら、`index.html` の `?v=` の値もまとめて変更してください。

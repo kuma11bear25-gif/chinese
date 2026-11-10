@@ -261,7 +261,7 @@
     const picks = [answer];
     if (mode === "phrase") {
       // フレーズごとに用意した「発音の似たダミー」を優先して使う。
-      // 足りない分は、発音の近い別のフレーズ・単語（2文字以上）から補う。
+      // 足りない分は、発音の近い別のフレーズ（他の問題のフレーズとそのダミー）から補う。
       // 正解フレーズの一部になっている語（例：很漂亮 に対する 漂亮）は紛らわしいので除外する。
       const ok = (w) =>
         !picks.some((p) => p.key === w.key || p.ja === w.ja || p.zh === w.zh || samePronunciation(p, w)) &&
@@ -271,7 +271,7 @@
         if (ok(w)) picks.push(w);
       }
       if (picks.length < CHOICE_COUNT) {
-        const ranked = [...PHRS, ...ALL.filter((w) => [...w.zh].length >= 2)]
+        const ranked = [...PHRS, ...DECOYS]
           .map((w) => ({ w, d: soundDistance(answer, w) }))
           .sort((x, y) => x.d - y.d)
           .map((x) => x.w);

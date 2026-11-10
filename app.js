@@ -13,7 +13,11 @@
   // レベル = HSK1〜6級
   const LEVELS = {};
   for (const lv of Object.keys(HSK_WORDS)) LEVELS[lv] = { label: `HSK${lv}級` };
-  const CATS = Object.keys(CATEGORY_LABELS);
+  // 語数の少ない品詞（代詞・数詞量詞・介詞・接続詞）は「その他」にまとめて表示する
+  // （保存データのキーは元の品詞のまま）
+  const MERGED_INTO_OTHER = ["pronoun", "numeral", "preposition", "conjunction"];
+  const groupOf = (cat) => (MERGED_INTO_OTHER.includes(cat) ? "other" : cat);
+  const CATS = Object.keys(CATEGORY_LABELS).filter((cat) => !MERGED_INTO_OTHER.includes(cat));
   // 全単語を {level, cat, zh, py, ja, key} に展開
   const ALL = [];
   for (const [level, cats] of Object.entries(HSK_WORDS)) {
@@ -24,7 +28,7 @@
     }
   }
   const wordsOf = (level, cat) =>
-    ALL.filter((w) => w.level === level && (cat === "all" || w.cat === cat));
+    ALL.filter((w) => w.level === level && (cat === "all" || groupOf(w.cat) === cat));
   // フレーズの聞き取り問題（2〜3語の言い回し）
   const PHRS = [];
   const DECOYS = []; // 発音の似たダミー選択肢（出題はされない）

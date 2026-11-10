@@ -283,15 +283,21 @@
       }
       return shuffle(picks);
     }
-    // 単語の聞き取り：全単語から発音の近いものを上位から少しランダムに選ぶ
+    // 単語の聞き取り：正解と同じ品詞（全級）の中から、発音の近いものを上位から少しランダムに選ぶ
+    // （品詞が違うと意味の形で見分けられてしまうため。足りない場合のみ他の品詞から補う）
     const usable = (w) =>
       !picks.some((p) => p.ja === w.ja || p.zh === w.zh || samePronunciation(p, w));
+    const group = groupOf(answer.cat);
     const ranked = shuffle(ALL)
-      .filter((w) => w.key !== answer.key)
+      .filter((w) => w.key !== answer.key && groupOf(w.cat) === group)
       .map((w) => ({ w, d: soundDistance(answer, w) }))
       .sort((x, y) => x.d - y.d);
     const top = shuffle(ranked.slice(0, (CHOICE_COUNT - 1) * 2).map((x) => x.w));
-    for (const w of [...top, ...ranked.map((x) => x.w)]) {
+    const others = ALL.filter((w) => groupOf(w.cat) !== group)
+      .map((w) => ({ w, d: soundDistance(answer, w) }))
+      .sort((x, y) => x.d - y.d)
+      .map((x) => x.w);
+    for (const w of [...top, ...ranked.map((x) => x.w), ...others]) {
       if (picks.length >= CHOICE_COUNT) break;
       if (usable(w)) picks.push(w);
     }

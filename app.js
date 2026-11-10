@@ -260,18 +260,26 @@
   const makeChoices = (answer, mode) => {
     const picks = [answer];
     if (mode === "phrase") {
-      // フレーズごとに用意した「発音の似たダミー」を使う
-      // （足りない場合だけ、発音の近い別のフレーズで補う）
-      const near = [
-        ...shuffle(answer.decoys),
-        ...PHRS.filter((w) => w.key !== answer.key)
+      // フレーズごとに用意した「発音の似たダミー」を優先して使う。
+      // 足りない分は、発音の近い別のフレーズ・単語（2文字以上）から補う。
+      // 正解フレーズの一部になっている語（例：很漂亮 に対する 漂亮）は紛らわしいので除外する。
+      const ok = (w) =>
+        !picks.some((p) => p.key === w.key || p.ja === w.ja || p.zh === w.zh || samePronunciation(p, w)) &&
+        !answer.zh.includes(w.zh) && !w.zh.includes(answer.zh);
+      for (const w of shuffle(answer.decoys)) {
+        if (picks.length >= CHOICE_COUNT) break;
+        if (ok(w)) picks.push(w);
+      }
+      if (picks.length < CHOICE_COUNT) {
+        const ranked = [...PHRS, ...ALL.filter((w) => [...w.zh].length >= 2)]
           .map((w) => ({ w, d: soundDistance(answer, w) }))
           .sort((x, y) => x.d - y.d)
-          .map((x) => x.w),
-      ];
-      for (const w of near) {
-        if (picks.length >= CHOICE_COUNT) break;
-        if (!picks.some((p) => p.key === w.key || p.ja === w.ja)) picks.push(w);
+          .map((x) => x.w);
+        const top = shuffle(ranked.slice(0, 8));
+        for (const w of [...top, ...ranked]) {
+          if (picks.length >= CHOICE_COUNT) break;
+          if (ok(w)) picks.push(w);
+        }
       }
       return shuffle(picks);
     }

@@ -27,13 +27,17 @@
     ALL.filter((w) => w.level === level && (cat === "all" || w.cat === cat));
   // フレーズの聞き取り問題（2〜3語の言い回し）
   const PHRS = [];
+  const DECOYS = []; // 発音の似たダミー選択肢（出題はされない）
   for (const [level, list] of Object.entries(HSK_PHRASES)) {
-    list.forEach(([zh, py, ja, point], i) => {
-      PHRS.push({ level, cat: "phrase", zh, py, ja, point, key: `phr${level}:${i}` });
+    list.forEach(([zh, py, ja, point, decoys = []], i) => {
+      const key = `phr${level}:${i}`;
+      const ds = decoys.map(([dzh, dpy, dja], j) => ({ level, cat: "decoy", zh: dzh, py: dpy, ja: dja, key: `${key}:d${j}` }));
+      DECOYS.push(...ds);
+      PHRS.push({ level, cat: "phrase", zh, py, ja, point, decoys: ds, key });
     });
   }
   const phrasesOf = (level) => PHRS.filter((w) => w.level === level);
-  const BY_KEY = new Map([...ALL, ...PHRS].map((w) => [w.key, w]));
+  const BY_KEY = new Map([...ALL, ...PHRS, ...DECOYS].map((w) => [w.key, w]));
 
   // ---------- 正解回数の保存 ----------
   let stats = {};
@@ -252,10 +256,15 @@
   const makeChoices = (answer, mode) => {
     const picks = [answer];
     if (mode === "phrase") {
-      // 同じ級の別のフレーズの意味をダミーにする（足りなければ近い級から補う）
-      const near = shuffle(PHRS).sort(
-        (a, b) => Math.abs(a.level - answer.level) - Math.abs(b.level - answer.level)
-      );
+      // フレーズごとに用意した「発音の似たダミー」を使う
+      // （足りない場合だけ、発音の近い別のフレーズで補う）
+      const near = [
+        ...shuffle(answer.decoys),
+        ...PHRS.filter((w) => w.key !== answer.key)
+          .map((w) => ({ w, d: soundDistance(answer, w) }))
+          .sort((x, y) => x.d - y.d)
+          .map((x) => x.w),
+      ];
       for (const w of near) {
         if (picks.length >= CHOICE_COUNT) break;
         if (!picks.some((p) => p.key === w.key || p.ja === w.ja)) picks.push(w);

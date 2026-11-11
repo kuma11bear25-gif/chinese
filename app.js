@@ -95,13 +95,30 @@
     pickVoice();
     speechSynthesis.onvoiceschanged = pickVoice;
   }
+  // 1文字の多音字は、文脈がないと音声合成が別の読みを選んでしまう
+  // （例：长 を zhǎng、地 を dì と読む）。読み上げのときだけ、
+  // 同じ発音で読みが1つしかない漢字に置き換える（画面の表示は変えない）。
+  const SPEAK_AS = {
+    长: "常", // cháng
+    地: "的", // de（助詞）
+    教: "交", // jiāo
+    弹: "谈", // tán
+    脏: "赃", // zāng
+    倒: "导", // dǎo
+    铺: "扑", // pū
+    挨: "癌", // ái
+    盛: "成", // chéng
+    颇: "坡", // pō
+    数: "鼠", // shǔ
+    幢: "撞", // zhuàng
+  };
   const speak = (text, rate = 0.85) => {
     if (!("speechSynthesis" in window)) {
       alert("このブラウザは音声読み上げに対応していません。");
       return;
     }
     speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
+    const u = new SpeechSynthesisUtterance(SPEAK_AS[text] || text);
     u.lang = "zh-CN";
     if (zhVoice) u.voice = zhVoice;
     u.rate = rate;

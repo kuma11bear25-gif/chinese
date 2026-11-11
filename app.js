@@ -4,7 +4,9 @@
   const STORAGE_KEY = "zh-vocab-stats-v1";
   const CHOICE_COUNT = 4;
   // 出題形式：audio＝単語の聞き取り、phrase＝フレーズの聞き取り
-  const MODE_LABELS = { audio: "単語の聞き取り", phrase: "フレーズの聞き取り" };
+  const MODE_LABELS = { audio: "単語の聞き取り", phrase: "フレーズの聞き取り", self: "聞いて自己判定" };
+  // 選択肢なしの自己判定モードは試作のため、この級だけで使える
+  const SELF_MODE_LEVEL = "4";
 
   const $ = (id) => document.getElementById(id);
 
@@ -156,6 +158,13 @@
 
   const renderMenu = () => {
     const box = $("categoryList");
+    // 自己判定モード（試作）は4級だけ：級を4級に固定し、他の級は選べないようにする
+    const selfMode = selected("mode") === "self";
+    document.querySelectorAll('input[name="level"]').forEach((r) => {
+      r.disabled = selfMode && r.value !== SELF_MODE_LEVEL;
+      if (selfMode && r.value === SELF_MODE_LEVEL) r.checked = true;
+    });
+    $("selfNote").classList.toggle("hidden", !selfMode);
     const level = selected("level");
     // その級に単語がある品詞だけを表示
     const cats = categoryKeys.filter((cat) => wordsOf(level, cat).length > 0);
@@ -326,7 +335,9 @@
     const { mode } = quiz;
     quiz.answered = false;
 
-    $("progress").textContent = `${LEVELS[q.level].label}・${MODE_LABELS[mode]}　${quiz.index + 1} / ${quiz.questions.length}`;
+    // 「1 / 10」が途中で折り返されないよう、番号部分は改行しない要素に入れる
+    $("progress").textContent = `${LEVELS[q.level].label}・${MODE_LABELS[mode]}　`;
+    $("progress").appendChild(el("span", "nowrap", `${quiz.index + 1} / ${quiz.questions.length}`));
     $("score").textContent = `正解 ${quiz.correct}`;
 
     $("question").textContent = "？";
@@ -339,6 +350,17 @@
 
     const box = $("choices");
     box.innerHTML = "";
+    box.classList.toggle("self", mode === "self");
+    if (mode === "self") {
+      // 選択肢なし：聞いて「わかる／わからない」を自分で判定し、その後に答えを表示
+      const know = el("button", "choice self-know", "○ わかる");
+      know.addEventListener("click", () => revealSelf(true));
+      const dunno = el("button", "choice self-dunno", "？ わからない");
+      dunno.addEventListener("click", () => revealSelf(false));
+      box.append(know, dunno);
+      speak(q.zh);
+      return;
+    }
     for (const w of makeChoices(q, mode)) {
       const b = el("button", "choice", w.ja);
       b.dataset.key = w.key;
@@ -390,6 +412,56 @@
     fb.textContent = ok ? "○ 正解！" : picked === null ? "？ わからない ― 正解を確認しましょう" : "× 不正解";
     fb.className = `feedback ${ok ? "ok" : picked === null ? "unknown" : "ng"}`;
 
+
+    const next = $("nextBtn");
+    next.textContent = quiz.index + 1 < quiz.questions.length ? "次へ" : "結果を見る";
+    next.classList.remove("hidden");
+    next.focus();
+  };
+
+  // 自己判定モード：判定を記録して答えを表示する
+  const revealSelf = (knew) => {
+    if (quiz.answered) return;
+    quiz.answered = true;
+    const q = quiz.questions[quiz.index];
+    record(q, knew);
+    if (knew) quiz.correct += 1;
+    else quiz.missed.push(q);
+
+    $("question").textContent = q.zh;
+    $("pinyin").textContent = `${q.py}　${q.ja}`;
+    const showStat = () => {
+      const s = statOf(q);
+      $("wordStat").textContent = `この単語：わかった ${s.c}回 / 回答 ${s.a}回`;
+      $("score").textContent = `正解 ${quiz.correct}`;
+    };
+    showStat();
+
+    const box = $("choices");
+    box.innerHTML = "";
+    const fb = $("feedback");
+    if (knew) {
+      fb.textContent = "○ わかった ― 意味が合っていたか確認しましょう";
+      fb.className = "feedback ok";
+      // 答えを見て違っていたら、不正解に付け替えられる
+      const wrong = el("button", "choice self-wrong", "× 違っていた（不正解にする）");
+      wrong.addEventListener("click", () => {
+        const s = statOf(q);
+        s.c = Math.max(0, s.c - 1);
+        stats[q.key] = s;
+        saveStats();
+        quiz.correct -= 1;
+        quiz.missed.push(q);
+        wrong.remove();
+        fb.textContent = "× 違っていた ― 間違えた単語に入れました";
+        fb.className = "feedback ng";
+        showStat();
+      });
+      box.appendChild(wrong);
+    } else {
+      fb.textContent = "？ わからない ― 答えを確認しましょう";
+      fb.className = "feedback unknown";
+    }
 
     const next = $("nextBtn");
     next.textContent = quiz.index + 1 < quiz.questions.length ? "次へ" : "結果を見る";
@@ -497,7 +569,7 @@
   document.addEventListener("keydown", (e) => {
     if ($("quiz").classList.contains("hidden")) return;
     if (!quiz.answered && /^[1-5]$/.test(e.key)) {
-      // 1〜4: 選択肢、5: わからない
+      // 1〜4: 選択肢、5: わからない（自己判定モードは 1: わかる、2: わからない）
       $("choices").querySelectorAll(".choice")[Number(e.key) - 1]?.click();
     } else if (quiz.answered && e.key === "Enter" && document.activeElement !== $("nextBtn")) {
       nextQuestion();

@@ -143,3 +143,10 @@ button:disabled { cursor: default; }
 .choice { -webkit-tap-highlight-color: transparent; }
 .quiz-top { gap: 8px; }
 .quiz-top #score { white-space: nowrap; }
+.option input:disabled + span { opacity: .35; cursor: default; }
+.note { color: var(--muted); font-size: .9rem; margin: 8px 0 0; }
+.choices.self { grid-template-columns: 1fr 1fr; }
+.choice.self-know { color: var(--ok); font-weight: bold; }
+.choice.self-dunno { color: var(--muted); }
+.choice.self-wrong { grid-column: 1 / -1; color: var(--ng); min-height: 0; padding: 10px; font-size: .95rem; }
+.nowrap { white-space: nowrap; }

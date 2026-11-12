@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>中国語単語クイズ</title>
-  <link rel="stylesheet" href="style.css?v=20261112a">
+  <link rel="stylesheet" href="style.css?v=20261112b">
 </head>
 <body>
   <header>
@@ -22,16 +22,20 @@
       <div class="option-grid" id="modeList">
         <label class="option"><input type="radio" name="mode" value="audio" checked><span>単語の聞き取り</span></label>
         <label class="option"><input type="radio" name="mode" value="phrase"><span>フレーズの聞き取り</span></label>
-        <label class="option"><input type="radio" name="mode" value="self"><span>聞いて自己判定</span></label>
       </div>
-      <p id="selfNote" class="note hidden">選択肢なしでフレーズを聞き、「わかる／わからない」を選ぶと答えが出ます（試作のため4級のみ）</p>
+
+      <h2>3. 回答方法を選ぶ</h2>
+      <div class="option-grid" id="styleList">
+        <label class="option"><input type="radio" name="style" value="choice" checked><span>選択肢あり</span></label>
+        <label class="option"><input type="radio" name="style" value="self"><span>選択肢なし</span></label>
+      </div>
 
       <div id="categoryBlock">
-        <h2>3. 品詞を選ぶ</h2>
+        <h2>4. 品詞を選ぶ</h2>
         <div id="categoryList" class="option-grid"></div>
       </div>
 
-      <h2 id="countHeading">4. 問題数</h2>
+      <h2 id="countHeading">5. 問題数</h2>
       <div class="option-grid three" id="countList">
         <label class="option"><input type="radio" name="count" value="10" checked><span>10問</span></label>
         <label class="option"><input type="radio" name="count" value="20"><span>20問</span></label>
@@ -88,9 +92,9 @@
     </section>
   </main>
 
-  <script src="words.js?v=20261112a"></script>
-  <script src="idioms.js?v=20261112a"></script>
-  <script src="phrases.js?v=20261112a"></script>
-  <script src="app.js?v=20261112a"></script>
+  <script src="words.js?v=20261112b"></script>
+  <script src="idioms.js?v=20261112b"></script>
+  <script src="phrases.js?v=20261112b"></script>
+  <script src="app.js?v=20261112b"></script>
 </body>
 </html>

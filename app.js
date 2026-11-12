@@ -4,9 +4,9 @@
   const STORAGE_KEY = "zh-vocab-stats-v1";
   const CHOICE_COUNT = 4;
   // 出題形式：audio＝単語の聞き取り、phrase＝フレーズの聞き取り
-  const MODE_LABELS = { audio: "単語の聞き取り", phrase: "フレーズの聞き取り", self: "聞いて自己判定" };
-  // 選択肢なしの自己判定モードは試作のため、この級だけで使える
-  const SELF_MODE_LEVEL = "4";
+  // 出題モード（何を聞くか）と回答方法（選択肢あり／なし）は別々に選ぶ
+  const MODE_LABELS = { audio: "単語の聞き取り", phrase: "フレーズの聞き取り" };
+  const STYLE_LABELS = { choice: "選択肢あり", self: "選択肢なし" };
 
   const $ = (id) => document.getElementById(id);
 
@@ -158,13 +158,6 @@
 
   const renderMenu = () => {
     const box = $("categoryList");
-    // 自己判定モード（試作）は4級だけ：級を4級に固定し、他の級は選べないようにする
-    const selfMode = selected("mode") === "self";
-    document.querySelectorAll('input[name="level"]').forEach((r) => {
-      r.disabled = selfMode && r.value !== SELF_MODE_LEVEL;
-      if (selfMode && r.value === SELF_MODE_LEVEL) r.checked = true;
-    });
-    $("selfNote").classList.toggle("hidden", !selfMode);
     const level = selected("level");
     // その級に単語がある品詞だけを表示
     const cats = categoryKeys.filter((cat) => wordsOf(level, cat).length > 0);
@@ -186,10 +179,9 @@
       box.appendChild(label);
     }
     // フレーズの聞き取りでは品詞の選択は使わない
-    // フレーズを出題するモード（フレーズの聞き取り・聞いて自己判定）では品詞の選択は使わない
-    const phraseMode = selected("mode") === "phrase" || selected("mode") === "self";
+    const phraseMode = selected("mode") === "phrase";
     $("categoryBlock").classList.toggle("hidden", phraseMode);
-    $("countHeading").textContent = phraseMode ? "3. 問題数" : "4. 問題数";
+    $("countHeading").textContent = phraseMode ? "4. 問題数" : "5. 問題数";
     const totalCorrect = Object.values(stats).reduce((n, s) => n + s.c, 0);
     const totalAnswered = Object.values(stats).reduce((n, s) => n + s.a, 0);
     $("totalStats").textContent = `累計 正解 ${totalCorrect} / 回答 ${totalAnswered}`;
@@ -200,9 +192,9 @@
   // ---------- クイズ ----------
   let quiz = null; // {mode, cat, questions, index, correct, missed, answered}
 
-  const startQuiz = (questions, mode, cat) => {
+  const startQuiz = (questions, mode, cat, style) => {
     if (questions.length === 0) return;
-    quiz = { mode, cat, questions, index: 0, correct: 0, missed: [], answered: false };
+    quiz = { mode, cat, style, questions, index: 0, correct: 0, missed: [], answered: false };
     show("quiz");
     renderQuestion();
   };
@@ -212,13 +204,14 @@
     const cat = selected("category");
     const mode = selected("mode");
     const count = Number(selected("count"));
-    let pool = shuffle(mode === "phrase" || mode === "self" ? phrasesOf(level) : wordsOf(level, cat));
+    const style = selected("style");
+    let pool = shuffle(mode === "phrase" ? phrasesOf(level) : wordsOf(level, cat));
     if ($("weakFirst").checked) {
       // 正解回数が少ない順（同数はランダムのまま）
       pool.sort((a, b) => statOf(a).c - statOf(b).c);
     }
     if (count > 0) pool = pool.slice(0, count);
-    startQuiz(shuffle(pool), mode, cat);
+    startQuiz(shuffle(pool), mode, cat, style);
   };
 
   // ---------- 発音の近さ ----------
@@ -337,22 +330,22 @@
     quiz.answered = false;
 
     // 「1 / 10」が途中で折り返されないよう、番号部分は改行しない要素に入れる
-    $("progress").textContent = `${LEVELS[q.level].label}・${MODE_LABELS[mode]}　`;
+    $("progress").textContent = `${LEVELS[q.level].label}・${MODE_LABELS[mode]}（${STYLE_LABELS[quiz.style]}）　`;
     $("progress").appendChild(el("span", "nowrap", `${quiz.index + 1} / ${quiz.questions.length}`));
     $("score").textContent = `正解 ${quiz.correct}`;
 
     $("question").textContent = "？";
     $("pinyin").textContent = "";
     const s = statOf(q);
-    $("wordStat").textContent = `${mode === "phrase" || mode === "self" ? "このフレーズ" : "この単語"}：正解 ${s.c}回 / 回答 ${s.a}回`;
+    $("wordStat").textContent = `${mode === "phrase" ? "このフレーズ" : "この単語"}：正解 ${s.c}回 / 回答 ${s.a}回`;
     $("feedback").textContent = "";
     $("feedback").className = "feedback";
     $("nextBtn").classList.add("hidden");
 
     const box = $("choices");
     box.innerHTML = "";
-    box.classList.toggle("self", mode === "self");
-    if (mode === "self") {
+    box.classList.toggle("self", quiz.style === "self");
+    if (quiz.style === "self") {
       // 選択肢なし：聞いて「わかる／わからない」を自分で判定し、その後に答えを表示
       const know = el("button", "choice self-know", "○ わかる");
       know.addEventListener("click", () => revealSelf(true));
@@ -433,7 +426,9 @@
     $("pinyin").textContent = `${q.py}　${q.ja}`;
     const showStat = () => {
       const s = statOf(q);
-      $("wordStat").textContent = `使っている単語：${q.point}\nこのフレーズ：わかった ${s.c}回 / 回答 ${s.a}回`;
+      $("wordStat").textContent = quiz.mode === "phrase"
+        ? `使っている単語：${q.point}\nこのフレーズ：わかった ${s.c}回 / 回答 ${s.a}回`
+        : `この単語：わかった ${s.c}回 / 回答 ${s.a}回`;
       $("score").textContent = `正解 ${quiz.correct}`;
     };
     showStat();
@@ -557,8 +552,8 @@
   $("slowBtn").addEventListener("click", () => speak(quiz.questions[quiz.index].zh, 0.55));
   document.querySelectorAll('input[name="mode"]').forEach((r) => r.addEventListener("change", renderMenu));
   $("nextBtn").addEventListener("click", nextQuestion);
-  $("retryBtn").addEventListener("click", () => startQuiz(shuffle(quiz.questions), quiz.mode, quiz.cat));
-  $("retryMissedBtn").addEventListener("click", () => startQuiz(shuffle(quiz.missed), quiz.mode, quiz.cat));
+  $("retryBtn").addEventListener("click", () => startQuiz(shuffle(quiz.questions), quiz.mode, quiz.cat, quiz.style));
+  $("retryMissedBtn").addEventListener("click", () => startQuiz(shuffle(quiz.missed), quiz.mode, quiz.cat, quiz.style));
   $("listBtn").addEventListener("click", () => { renderList(); show("list"); });
   $("resetBtn").addEventListener("click", () => {
     if (!confirm("すべての正解回数をリセットしますか？")) return;

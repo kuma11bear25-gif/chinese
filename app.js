@@ -186,7 +186,8 @@
       box.appendChild(label);
     }
     // フレーズの聞き取りでは品詞の選択は使わない
-    const phraseMode = selected("mode") === "phrase";
+    // フレーズを出題するモード（フレーズの聞き取り・聞いて自己判定）では品詞の選択は使わない
+    const phraseMode = selected("mode") === "phrase" || selected("mode") === "self";
     $("categoryBlock").classList.toggle("hidden", phraseMode);
     $("countHeading").textContent = phraseMode ? "3. 問題数" : "4. 問題数";
     const totalCorrect = Object.values(stats).reduce((n, s) => n + s.c, 0);
@@ -211,7 +212,7 @@
     const cat = selected("category");
     const mode = selected("mode");
     const count = Number(selected("count"));
-    let pool = shuffle(mode === "phrase" ? phrasesOf(level) : wordsOf(level, cat));
+    let pool = shuffle(mode === "phrase" || mode === "self" ? phrasesOf(level) : wordsOf(level, cat));
     if ($("weakFirst").checked) {
       // 正解回数が少ない順（同数はランダムのまま）
       pool.sort((a, b) => statOf(a).c - statOf(b).c);
@@ -343,7 +344,7 @@
     $("question").textContent = "？";
     $("pinyin").textContent = "";
     const s = statOf(q);
-    $("wordStat").textContent = `${mode === "phrase" ? "このフレーズ" : "この単語"}：正解 ${s.c}回 / 回答 ${s.a}回`;
+    $("wordStat").textContent = `${mode === "phrase" || mode === "self" ? "このフレーズ" : "この単語"}：正解 ${s.c}回 / 回答 ${s.a}回`;
     $("feedback").textContent = "";
     $("feedback").className = "feedback";
     $("nextBtn").classList.add("hidden");
@@ -432,7 +433,7 @@
     $("pinyin").textContent = `${q.py}　${q.ja}`;
     const showStat = () => {
       const s = statOf(q);
-      $("wordStat").textContent = `この単語：わかった ${s.c}回 / 回答 ${s.a}回`;
+      $("wordStat").textContent = `使っている単語：${q.point}\nこのフレーズ：わかった ${s.c}回 / 回答 ${s.a}回`;
       $("score").textContent = `正解 ${quiz.correct}`;
     };
     showStat();
@@ -453,7 +454,7 @@
         quiz.correct -= 1;
         quiz.missed.push(q);
         wrong.remove();
-        fb.textContent = "× 違っていた ― 間違えた単語に入れました";
+        fb.textContent = "× 違っていた ― 間違えた問題に入れました";
         fb.className = "feedback ng";
         showStat();
       });

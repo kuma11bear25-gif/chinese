@@ -184,6 +184,7 @@
     const totalCorrect = Object.values(stats).reduce((n, s) => n + s.c, 0);
     const totalAnswered = Object.values(stats).reduce((n, s) => n + s.a, 0);
     $("totalStats").textContent = `累計 正解 ${totalCorrect} / 回答 ${totalAnswered}`;
+    renderPoolNote();
   };
 
   const selected = (name) => document.querySelector(`input[name="${name}"]:checked`).value;
@@ -198,13 +199,36 @@
     renderQuestion();
   };
 
+  // 「正解N回以上の問題は出さない」設定（0＝制限なし）。設定はこの端末に保存する
+  const HIDE_KEY = "zh-vocab-hide-after";
+  const hideAfter = () => Number($("hideAfter").value);
+  const isEligible = (w) => hideAfter() === 0 || statOf(w).c < hideAfter();
+  // メニューで選んでいる級・モード・品詞の出題候補（正解回数で除外する前）
+  const menuCandidates = () => {
+    const level = selected("level");
+    if (selected("mode") === "phrase") return phrasesOf(level);
+    const cat = document.querySelector('input[name="category"]:checked')?.value || "all";
+    return wordsOf(level, cat);
+  };
+  const renderPoolNote = () => {
+    const all = menuCandidates();
+    const n = hideAfter();
+    $("poolNote").textContent = n === 0
+      ? ""
+      : `出題できる問題：${all.filter(isEligible).length} / ${all.length}（正解${n}回以上の${all.length - all.filter(isEligible).length}問を除外）`;
+  };
+
   const startFromMenu = () => {
     const level = selected("level");
     const cat = selected("category");
     const mode = selected("mode");
     const count = Number(selected("count"));
     const style = selected("style");
-    let pool = shuffle(mode === "phrase" ? phrasesOf(level) : wordsOf(level, cat));
+    let pool = shuffle((mode === "phrase" ? phrasesOf(level) : wordsOf(level, cat)).filter(isEligible));
+    if (pool.length === 0) {
+      alert(`正解${hideAfter()}回以上の問題を除くと、出題できる問題がありません。\n「制限なし」にするか、回数を増やしてください。`);
+      return;
+    }
     if ($("weakFirst").checked) {
       // 正解回数が少ない順（同数はランダムのまま）
       pool.sort((a, b) => statOf(a).c - statOf(b).c);
@@ -532,6 +556,15 @@
 
   // ---------- イベント ----------
   $("startBtn").addEventListener("click", startFromMenu);
+  try {
+    const saved = localStorage.getItem(HIDE_KEY);
+    if (saved !== null && [...$("hideAfter").options].some((o) => o.value === saved)) $("hideAfter").value = saved;
+  } catch (_) { /* 保存できない環境では既定値のまま */ }
+  $("hideAfter").addEventListener("change", () => {
+    try { localStorage.setItem(HIDE_KEY, $("hideAfter").value); } catch (_) { /* 無視 */ }
+    renderPoolNote();
+  });
+  $("categoryList").addEventListener("change", renderPoolNote);
   // HSK級の選択肢を生成
   Object.entries(LEVELS).forEach(([lv, { label }], i) => {
     const wrap = el("label", "option");

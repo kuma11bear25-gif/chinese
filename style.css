@@ -155,3 +155,5 @@ button:disabled { cursor: default; }
 .stats-table td.zh.phrase { white-space: normal; font-size: 1.05rem; min-width: 5em; }
 #listSummary { margin: 0 0 8px; }
 .stats-table .play, .tabs button { -webkit-tap-highlight-color: transparent; }
+.question.sentence { font-size: 1.6rem; line-height: 1.5; }
+.question.sentence + .pinyin { font-size: 1.05rem; }

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>中国語単語クイズ</title>
-  <link rel="stylesheet" href="style.css?v=20261118a">
+  <link rel="stylesheet" href="style.css?v=20261118b">
 </head>
 <body>
   <header>
@@ -22,6 +22,7 @@
       <div class="option-grid" id="modeList">
         <label class="option"><input type="radio" name="mode" value="audio" checked><span>単語の聞き取り</span></label>
         <label class="option"><input type="radio" name="mode" value="phrase"><span>フレーズの聞き取り</span></label>
+        <label class="option"><input type="radio" name="mode" value="sentence"><span>文章の聞き取り<small>選択肢なしのみ</small></span></label>
       </div>
 
       <h2>3. 回答方法を選ぶ</h2>
@@ -59,7 +60,7 @@
       <button id="startBtn" class="primary">スタート</button>
 
       <div class="menu-footer">
-        <button id="listBtn" class="link-btn">単語・フレーズ一覧／正解回数を見る</button>
+        <button id="listBtn" class="link-btn">単語・フレーズ・文章一覧／正解回数を見る</button>
         <span id="totalStats"></span>
       </div>
     </section>
@@ -106,9 +107,10 @@
     </section>
   </main>
 
-  <script src="words.js?v=20261118a"></script>
-  <script src="idioms.js?v=20261118a"></script>
-  <script src="phrases.js?v=20261118a"></script>
-  <script src="app.js?v=20261118a"></script>
+  <script src="words.js?v=20261118b"></script>
+  <script src="idioms.js?v=20261118b"></script>
+  <script src="sentences.js?v=20261118b"></script>
+  <script src="phrases.js?v=20261118b"></script>
+  <script src="app.js?v=20261118b"></script>
 </body>
 </html>

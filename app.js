@@ -5,7 +5,7 @@
   const CHOICE_COUNT = 4;
   // 出題形式：audio＝単語の聞き取り、phrase＝フレーズの聞き取り
   // 出題モード（何を聞くか）と回答方法（選択肢あり／なし）は別々に選ぶ
-  const MODE_LABELS = { audio: "単語の聞き取り", phrase: "フレーズの聞き取り" };
+  const MODE_LABELS = { audio: "単語の聞き取り", phrase: "フレーズの聞き取り", sentence: "文章の聞き取り" };
   const STYLE_LABELS = { choice: "選択肢あり", self: "選択肢なし" };
 
   const $ = (id) => document.getElementById(id);
@@ -43,7 +43,17 @@
     });
   }
   const phrasesOf = (level) => PHRS.filter((w) => w.level === level);
-  const BY_KEY = new Map([...ALL, ...PHRS, ...DECOYS].map((w) => [w.key, w]));
+  // 文章の聞き取り問題（選択肢なしのみ）。以前の文章問題（sent…）と記録が混ざらないよう stc… を使う
+  const STCS = [];
+  for (const [level, list] of Object.entries(HSK_SENTENCES)) {
+    list.forEach(([zh, py, ja, point], i) => {
+      STCS.push({ level, cat: "sentence", zh, py, ja, point, key: `stc${level}:${i}` });
+    });
+  }
+  const sentencesOf = (level) => STCS.filter((w) => w.level === level);
+  // 出題モードごとの「〜の」表示名と出題元
+  const UNIT = { audio: "単語", phrase: "フレーズ", sentence: "文章" };
+  const BY_KEY = new Map([...ALL, ...PHRS, ...DECOYS, ...STCS].map((w) => [w.key, w]));
 
   // ---------- 正解回数の保存 ----------
   let stats = {};
@@ -62,7 +72,7 @@
     const byZh = new Map(ALL.map((w) => [w.zh, w]));
     let changed = false;
     for (const oldKey of Object.keys(stats)) {
-      if (/^(hsk|sent|phr)/.test(oldKey)) continue;
+      if (/^(hsk|sent|phr|stc)/.test(oldKey)) continue;
       const zh = oldKey.split(":").pop();
       const w = byZh.get(zh);
       if (w) {
@@ -177,10 +187,15 @@
       label.append(input, span);
       box.appendChild(label);
     }
-    // フレーズの聞き取りでは品詞の選択は使わない
-    const phraseMode = selected("mode") === "phrase";
+    // フレーズ・文章の聞き取りでは品詞の選択は使わない
+    const mode = selected("mode");
+    const phraseMode = mode === "phrase" || mode === "sentence";
     $("categoryBlock").classList.toggle("hidden", phraseMode);
     $("countHeading").textContent = phraseMode ? "4. 問題数" : "5. 問題数";
+    // 文章の聞き取りは「選択肢なし」だけ：選択肢ありを選べないようにする
+    const choiceInput = document.querySelector('input[name="style"][value="choice"]');
+    choiceInput.disabled = mode === "sentence";
+    if (mode === "sentence") document.querySelector('input[name="style"][value="self"]').checked = true;
     const totalCorrect = Object.values(stats).reduce((n, s) => n + s.c, 0);
     const totalAnswered = Object.values(stats).reduce((n, s) => n + s.a, 0);
     $("totalStats").textContent = `累計 正解 ${totalCorrect} / 回答 ${totalAnswered}`;
@@ -207,6 +222,7 @@
   const menuCandidates = () => {
     const level = selected("level");
     if (selected("mode") === "phrase") return phrasesOf(level);
+    if (selected("mode") === "sentence") return sentencesOf(level);
     const cat = document.querySelector('input[name="category"]:checked')?.value || "all";
     return wordsOf(level, cat);
   };
@@ -224,7 +240,8 @@
     const mode = selected("mode");
     const count = Number(selected("count"));
     const style = selected("style");
-    let pool = shuffle((mode === "phrase" ? phrasesOf(level) : wordsOf(level, cat)).filter(isEligible));
+    const source = mode === "phrase" ? phrasesOf(level) : mode === "sentence" ? sentencesOf(level) : wordsOf(level, cat);
+    let pool = shuffle(source.filter(isEligible));
     if (pool.length === 0) {
       alert(`正解${hideAfter()}回以上の問題を除くと、出題できる問題がありません。\n「制限なし」にするか、回数を増やしてください。`);
       return;
@@ -360,7 +377,8 @@
     $("question").textContent = "？";
     $("pinyin").textContent = "";
     const s = statOf(q);
-    $("wordStat").textContent = `${mode === "phrase" ? "このフレーズ" : "この単語"}：正解 ${s.c}回 / 回答 ${s.a}回`;
+    $("wordStat").textContent = `この${UNIT[mode]}：正解 ${s.c}回 / 回答 ${s.a}回`;
+    $("question").classList.remove("sentence");
     $("feedback").textContent = "";
     $("feedback").className = "feedback";
     $("nextBtn").classList.add("hidden");
@@ -446,11 +464,15 @@
     else quiz.missed.push(q);
 
     $("question").textContent = q.zh;
-    $("pinyin").textContent = `${q.py}　${q.ja}`;
+    // 文章は長いので文字を小さめにし、ピンインと意味は改行して表示
+    $("question").classList.toggle("sentence", quiz.mode === "sentence");
+    $("pinyin").textContent = quiz.mode === "sentence" ? `${q.py}\n${q.ja}` : `${q.py}　${q.ja}`;
     const showStat = () => {
       const s = statOf(q);
       $("wordStat").textContent = quiz.mode === "phrase"
         ? `使っている単語：${q.point}\nこのフレーズ：わかった ${s.c}回 / 回答 ${s.a}回`
+        : quiz.mode === "sentence"
+        ? `ポイント：${q.point}\nこの文章：わかった ${s.c}回 / 回答 ${s.a}回`
         : `この単語：わかった ${s.c}回 / 回答 ${s.a}回`;
       $("score").textContent = `正解 ${quiz.correct}`;
     };
@@ -526,18 +548,19 @@
     }
     tabs.appendChild(el("span", "tab-sep"));
     // 品詞タブの最後に「フレーズ」タブを置き、フレーズ問題の一覧と正解回数も見られるようにする
-    const listCats = [...CATS.filter((cat) => wordsOf(listLevel, cat).length > 0), "phrase"];
+    const listCats = [...CATS.filter((cat) => wordsOf(listLevel, cat).length > 0), "phrase", "sentence"];
     if (!listCats.includes(listCat)) listCat = listCats[0];
     for (const cat of listCats) {
-      const label = cat === "phrase" ? "フレーズ" : CATEGORY_LABELS[cat];
-      const b = el("button", (cat === listCat ? "active " : "") + (cat === "phrase" ? "tab-phrase" : ""), label);
+      const label = cat === "phrase" ? "フレーズ" : cat === "sentence" ? "文章" : CATEGORY_LABELS[cat];
+      const b = el("button", (cat === listCat ? "active " : "") + (cat === "phrase" || cat === "sentence" ? `tab-${cat}` : ""), label);
       b.addEventListener("click", () => { listCat = cat; renderList(); });
       tabs.appendChild(b);
     }
-    const isPhrase = listCat === "phrase";
-    const items = isPhrase ? phrasesOf(listLevel) : wordsOf(listLevel, listCat);
+    const isPhrase = listCat === "phrase" || listCat === "sentence";
+    const items = listCat === "phrase" ? phrasesOf(listLevel) : listCat === "sentence" ? sentencesOf(listLevel) : wordsOf(listLevel, listCat);
     const done = items.filter((w) => statOf(w).c > 0).length;
-    $("listSummary").textContent = `${LEVELS[listLevel].label}・${isPhrase ? "フレーズ" : CATEGORY_LABELS[listCat]}：${items.length}${isPhrase ? "問" : "語"}（正解済 ${done}）`;
+    const tabName = listCat === "phrase" ? "フレーズ" : listCat === "sentence" ? "文章" : CATEGORY_LABELS[listCat];
+    $("listSummary").textContent = `${LEVELS[listLevel].label}・${tabName}：${items.length}${isPhrase ? "問" : "語"}（正解済 ${done}）`;
     const body = $("listBody");
     body.innerHTML = "";
     for (const w of items) {
@@ -581,7 +604,7 @@
     input.checked = i === 0;
     input.addEventListener("change", renderMenu);
     const span = el("span", null, label);
-    span.appendChild(el("small", null, `${wordsOf(lv, "all").length}語・${phrasesOf(lv).length}句`));
+    span.appendChild(el("small", null, `${wordsOf(lv, "all").length}語・${phrasesOf(lv).length}句・${sentencesOf(lv).length}文`));
     wrap.append(input, span);
     $("levelList").appendChild(wrap);
   });

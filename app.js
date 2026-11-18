@@ -525,16 +525,22 @@
       tabs.appendChild(b);
     }
     tabs.appendChild(el("span", "tab-sep"));
-    const listCats = CATS.filter((cat) => wordsOf(listLevel, cat).length > 0);
+    // 品詞タブの最後に「フレーズ」タブを置き、フレーズ問題の一覧と正解回数も見られるようにする
+    const listCats = [...CATS.filter((cat) => wordsOf(listLevel, cat).length > 0), "phrase"];
     if (!listCats.includes(listCat)) listCat = listCats[0];
     for (const cat of listCats) {
-      const b = el("button", cat === listCat ? "active" : "", CATEGORY_LABELS[cat]);
+      const label = cat === "phrase" ? "フレーズ" : CATEGORY_LABELS[cat];
+      const b = el("button", (cat === listCat ? "active " : "") + (cat === "phrase" ? "tab-phrase" : ""), label);
       b.addEventListener("click", () => { listCat = cat; renderList(); });
       tabs.appendChild(b);
     }
+    const isPhrase = listCat === "phrase";
+    const items = isPhrase ? phrasesOf(listLevel) : wordsOf(listLevel, listCat);
+    const done = items.filter((w) => statOf(w).c > 0).length;
+    $("listSummary").textContent = `${LEVELS[listLevel].label}・${isPhrase ? "フレーズ" : CATEGORY_LABELS[listCat]}：${items.length}${isPhrase ? "問" : "語"}（正解済 ${done}）`;
     const body = $("listBody");
     body.innerHTML = "";
-    for (const w of wordsOf(listLevel, listCat)) {
+    for (const w of items) {
       const s = statOf(w);
       const tr = el("tr");
       const play = el("button", "play", "🔊");
@@ -543,7 +549,7 @@
       const tdPlay = el("td");
       tdPlay.appendChild(play);
       tr.append(
-        el("td", "zh", w.zh),
+        el("td", isPhrase ? "zh phrase" : "zh", w.zh),
         el("td", null, w.py),
         el("td", null, w.ja),
         el("td", "num", String(s.c)),

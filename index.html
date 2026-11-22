@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>中国語単語クイズ</title>
-  <link rel="stylesheet" href="style.css?v=20261122a">
+  <link rel="stylesheet" href="style.css?v=20261122b">
 </head>
 <body>
   <header>
@@ -23,7 +23,9 @@
         <label class="option"><input type="radio" name="mode" value="audio" checked><span>単語の聞き取り</span></label>
         <label class="option"><input type="radio" name="mode" value="phrase"><span>フレーズの聞き取り</span></label>
         <label class="option"><input type="radio" name="mode" value="sentence"><span>文章の聞き取り<small>選択肢なしのみ</small></span></label>
+        <label class="option"><input type="radio" name="mode" value="chain"><span>つながり学習<small>単語→フレーズ→文章</small></span></label>
       </div>
+      <p id="chainNote" class="note hidden">1組＝単語・その単語を使ったフレーズ・そのフレーズを含む文章の3問を続けて出題します（文章は選択肢なし）。問題数は組の数です。今は4級だけ用意しています。</p>
 
       <h2>3. 回答方法を選ぶ</h2>
       <div class="option-grid" id="styleList">
@@ -107,10 +109,11 @@
     </section>
   </main>
 
-  <script src="words.js?v=20261122a"></script>
-  <script src="idioms.js?v=20261122a"></script>
-  <script src="sentences.js?v=20261122a"></script>
-  <script src="phrases.js?v=20261122a"></script>
-  <script src="app.js?v=20261122a"></script>
+  <script src="words.js?v=20261122b"></script>
+  <script src="idioms.js?v=20261122b"></script>
+  <script src="sentences.js?v=20261122b"></script>
+  <script src="chains.js?v=20261122b"></script>
+  <script src="phrases.js?v=20261122b"></script>
+  <script src="app.js?v=20261122b"></script>
 </body>
 </html>

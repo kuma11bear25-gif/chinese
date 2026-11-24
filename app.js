@@ -5,7 +5,7 @@
   const CHOICE_COUNT = 4;
   // 出題形式：audio＝単語の聞き取り、phrase＝フレーズの聞き取り
   // 出題モード（何を聞くか）と回答方法（選択肢あり／なし）は別々に選ぶ
-  const MODE_LABELS = { audio: "単語の聞き取り", phrase: "フレーズの聞き取り", sentence: "文章の聞き取り", chain: "つながり学習" };
+  const MODE_LABELS = { audio: "単語の聞き取り", phrase: "フレーズの聞き取り", sentence: "文章の聞き取り" };
   const STYLE_LABELS = { choice: "選択肢あり", self: "選択肢なし" };
 
   const $ = (id) => document.getElementById(id);
@@ -53,25 +53,11 @@
   const sentencesOf = (level) => STCS.filter((w) => w.level === level);
   // 出題モードごとの「〜の」表示名と出題元
   const UNIT = { audio: "単語", phrase: "フレーズ", sentence: "文章" };
-  // 問題の種類（単語・フレーズ・文章）は、出題モードではなく問題そのものから決める
-  // （つながり学習では1回のクイズに3種類が混ざるため）
+  // 問題の種類（単語・フレーズ・文章）は問題そのものから決める
   const qMode = (q) => (q.cat === "phrase" ? "phrase" : q.cat === "sentence" ? "sentence" : "audio");
   // 文章は常に選択肢なし
   const qStyle = (q) => (qMode(q) === "sentence" ? "self" : quiz.style);
 
-  // つながり学習：単語 → フレーズ → 文章 の組を、各データの項目に結び付ける
-  const CHAINS = [];
-  for (const [level, list] of Object.entries(typeof HSK_CHAINS === "undefined" ? {} : HSK_CHAINS)) {
-    for (const [w, p, t] of list) {
-      const word = ALL.find((x) => x.level === level && x.zh === w && x.cat !== "idiom");
-      const phrase = PHRS.find((x) => x.level === level && x.zh === p);
-      const sentence = STCS.find((x) => x.level === level && x.zh === t);
-      if (word && phrase && sentence) CHAINS.push({ level, items: [word, phrase, sentence] });
-      else console.warn("つながりデータが見つかりません:", level, w, p, t);
-    }
-  }
-  const chainsOf = (level) => CHAINS.filter((c) => c.level === level);
-  const STEP_LABELS = ["単語", "フレーズ", "文章"];
   const BY_KEY = new Map([...ALL, ...PHRS, ...DECOYS, ...STCS].map((w) => [w.key, w]));
 
   // ---------- 正解回数の保存 ----------
@@ -206,19 +192,9 @@
       label.append(input, span);
       box.appendChild(label);
     }
-    // フレーズ・文章の聞き取り・つながり学習では品詞の選択は使わない
+    // フレーズ・文章の聞き取りでは品詞の選択は使わない
     const mode = selected("mode");
-    const phraseMode = mode === "phrase" || mode === "sentence" || mode === "chain";
-    // つながり学習は、つながりデータがある級だけ選べる
-    const chainLevels = [...new Set(CHAINS.map((c) => c.level))];
-    document.querySelectorAll('input[name="level"]').forEach((r) => {
-      r.disabled = mode === "chain" && !chainLevels.includes(r.value);
-    });
-    if (mode === "chain" && !chainLevels.includes(selected("level")) && chainLevels.length) {
-      document.querySelector(`input[name="level"][value="${chainLevels[0]}"]`).checked = true;
-      return renderMenu();
-    }
-    $("chainNote").classList.toggle("hidden", mode !== "chain");
+    const phraseMode = mode === "phrase" || mode === "sentence";
     $("categoryBlock").classList.toggle("hidden", phraseMode);
     $("countHeading").textContent = phraseMode ? "4. 問題数" : "5. 問題数";
     // 文章の聞き取りは「選択肢なし」だけ：選択肢ありを選べないようにする
@@ -247,12 +223,9 @@
   const HIDE_KEY = "zh-vocab-hide-after";
   const hideAfter = () => Number($("hideAfter").value);
   const isEligible = (w) => hideAfter() === 0 || statOf(w).c < hideAfter();
-  // つながりの組は、3問のうち1つでも出題対象が残っていれば出す
-  const isChainEligible = (c) => c.items.some(isEligible);
   // メニューで選んでいる級・モード・品詞の出題候補（正解回数で除外する前）
   const menuCandidates = () => {
     const level = selected("level");
-    if (selected("mode") === "chain") return chainsOf(level);
     if (selected("mode") === "phrase") return phrasesOf(level);
     if (selected("mode") === "sentence") return sentencesOf(level);
     const cat = document.querySelector('input[name="category"]:checked')?.value || "all";
@@ -261,13 +234,6 @@
   const renderPoolNote = () => {
     const all = menuCandidates();
     const n = hideAfter();
-    if (selected("mode") === "chain") {
-      const ok = all.filter(isChainEligible).length;
-      $("poolNote").textContent = n === 0
-        ? `つながり：${all.length}組（${all.length * 3}問）`
-        : `出題できる組：${ok} / ${all.length}（3問とも正解${n}回以上の${all.length - ok}組を除外）`;
-      return;
-    }
     $("poolNote").textContent = n === 0
       ? ""
       : `出題できる問題：${all.filter(isEligible).length} / ${all.length}（正解${n}回以上の${all.length - all.filter(isEligible).length}問を除外）`;
@@ -279,18 +245,6 @@
     const mode = selected("mode");
     const count = Number(selected("count"));
     const style = selected("style");
-    if (mode === "chain") {
-      // 組単位でシャッフルし、各組の中は 単語 → フレーズ → 文章 の順で出題する
-      let chains = shuffle(chainsOf(level).filter(isChainEligible));
-      if (chains.length === 0) {
-        alert(`正解${hideAfter()}回以上の問題を除くと、出題できる組がありません。\n「制限なし」にするか、回数を増やしてください。`);
-        return;
-      }
-      if (count > 0) chains = chains.slice(0, count);
-      const questions = chains.flatMap((c) => c.items.map((it, i) => ({ ...it, chain: c, step: i })));
-      startQuiz(questions, mode, cat, style);
-      return;
-    }
     const source = mode === "phrase" ? phrasesOf(level) : mode === "sentence" ? sentencesOf(level) : wordsOf(level, cat);
     let pool = shuffle(source.filter(isEligible));
     if (pool.length === 0) {
@@ -422,8 +376,7 @@
     quiz.answered = false;
 
     // 「1 / 10」が途中で折り返されないよう、番号部分は改行しない要素に入れる
-    const stepLabel = quiz.mode === "chain" ? `［${STEP_LABELS[q.step]}］` : "";
-    $("progress").textContent = `${LEVELS[q.level].label}・${MODE_LABELS[quiz.mode]}（${STYLE_LABELS[quiz.style]}）${stepLabel}　`;
+    $("progress").textContent = `${LEVELS[q.level].label}・${MODE_LABELS[quiz.mode]}（${STYLE_LABELS[quiz.style]}）　`;
     $("progress").appendChild(el("span", "nowrap", `${quiz.index + 1} / ${quiz.questions.length}`));
     $("score").textContent = `正解 ${quiz.correct}`;
 
@@ -493,7 +446,7 @@
     const s = statOf(q);
     $("wordStat").textContent = (qMode(q) === "phrase"
       ? `使っている単語：${q.point}\nこのフレーズ：正解 ${s.c}回 / 回答 ${s.a}回`
-      : `この単語：正解 ${s.c}回 / 回答 ${s.a}回`) + chainText(q);
+      : `この単語：正解 ${s.c}回 / 回答 ${s.a}回`);
     $("score").textContent = `正解 ${quiz.correct}`;
 
     const fb = $("feedback");
@@ -506,9 +459,6 @@
     next.classList.remove("hidden");
     next.focus();
   };
-
-  // つながり学習では、答えのあとにこの組の 単語 → フレーズ → 文章 を表示する
-  const chainText = (q) => (q.chain ? `\nつながり：${q.chain.items.map((x) => x.zh).join(" → ")}` : "");
 
   // 自己判定モード：判定を記録して答えを表示する
   const revealSelf = (knew) => {
@@ -529,7 +479,7 @@
         ? `使っている単語：${q.point}\nこのフレーズ：わかった ${s.c}回 / 回答 ${s.a}回`
         : qMode(q) === "sentence"
         ? `ポイント：${q.point}\nこの文章：わかった ${s.c}回 / 回答 ${s.a}回`
-        : `この単語：わかった ${s.c}回 / 回答 ${s.a}回`) + chainText(q);
+        : `この単語：わかった ${s.c}回 / 回答 ${s.a}回`);
       $("score").textContent = `正解 ${quiz.correct}`;
     };
     showStat();
@@ -669,10 +619,8 @@
   $("slowBtn").addEventListener("click", () => speak(quiz.questions[quiz.index].zh, 0.55));
   document.querySelectorAll('input[name="mode"]').forEach((r) => r.addEventListener("change", renderMenu));
   $("nextBtn").addEventListener("click", nextQuestion);
-  // つながり学習は 単語 → フレーズ → 文章 の順番を保つため並べ替えない
-  const reorder = (list) => (quiz.mode === "chain" ? [...list] : shuffle(list));
-  $("retryBtn").addEventListener("click", () => startQuiz(reorder(quiz.questions), quiz.mode, quiz.cat, quiz.style));
-  $("retryMissedBtn").addEventListener("click", () => startQuiz(reorder(quiz.missed), quiz.mode, quiz.cat, quiz.style));
+  $("retryBtn").addEventListener("click", () => startQuiz(shuffle(quiz.questions), quiz.mode, quiz.cat, quiz.style));
+  $("retryMissedBtn").addEventListener("click", () => startQuiz(shuffle(quiz.missed), quiz.mode, quiz.cat, quiz.style));
   $("listBtn").addEventListener("click", () => { renderList(); show("list"); });
   $("resetBtn").addEventListener("click", () => {
     if (!confirm("すべての正解回数をリセットしますか？")) return;
